@@ -120,9 +120,50 @@ For a deep dive into the technical architecture and the philosophy behind the "I
 
 ![Studio Demo](docs/assets/studio_demo.webp)
 
+## ⚡ Local Model Inference (Desktop App Only)
+
+The desktop app includes a built-in **local generation engine** powered by [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) — generate images entirely on your own machine with no API key and no internet connection required.
+
+### Supported Local Models
+
+| Model | Type | Size | Speed |
+|---|---|---|---|
+| **Z-Image Turbo** ⚡ | Diffusion Transformer | 2.5 GB + 2.7 GB aux | 8-step turbo |
+| **Z-Image Base** ⚡ | Diffusion Transformer | 3.5 GB + 2.7 GB aux | 50-step high-quality |
+| **Dreamshaper 8** | SD 1.5 | 2.1 GB | 20-step versatile |
+| **Realistic Vision v5.1** | SD 1.5 | 2.1 GB | 25-step photorealistic |
+| **Anything v5** | SD 1.5 | 2.1 GB | 20-step anime/illustration |
+| **SDXL Base 1.0** | SDXL | 6.9 GB | 30-step high-res |
+
+> **Z-Image models** require two shared auxiliary files (downloaded once, shared across both models):
+> - **Qwen3-4B Text Encoder** — 2.4 GB
+> - **FLUX VAE** — 335 MB
+
+### How to Use Local Models
+
+1. Open **Settings → Local Models** in the desktop app
+2. Install the **sd.cpp inference engine** (one click — auto-downloaded)
+3. Download your chosen model (and auxiliary files for Z-Image)
+4. In **Image Studio**, click the **⚡ Local** toggle next to the model selector
+5. Select your local model and generate — no API key needed
+
+All downloads happen inside the app. Nothing is installed system-wide.
+
+> **Local inference is only available in the desktop app.** The hosted web version always uses cloud APIs.
+
+### Hardware Notes
+
+- Runs on CPU (all platforms) and **Metal GPU** (macOS Apple Silicon — M1/M2/M3/M4)
+- Metal GPU acceleration is built into the macOS desktop binary — significantly faster than CPU-only
+- Recommended: 16 GB RAM for Z-Image models (7.4 GB weights + 2.4 GB compute buffer)
+- The system may slow during generation — the process uses all available CPU cores while running
+
+---
+
 ## ✨ Features
 
 - **Image Studio** — Generate images from text prompts (50+ text-to-image models) or transform existing images (55+ image-to-image models). Switches model set automatically based on whether a reference image is provided. Quality and resolution controls visible for models that support them.
+- **Local Inference** — Generate images on-device with no API key using Z-Image Turbo/Base, Dreamshaper, Realistic Vision, Anything v5, or SDXL — powered by stable-diffusion.cpp with Metal GPU acceleration on Apple Silicon.
 - **Multi-Image Input** — Upload up to 14 reference images for compatible edit models (Nano Banana 2 Edit, Flux Kontext Dev, GPT-4o Edit, and more). Multi-select picker with order badges, batch upload, and a "Use Selected" confirmation flow.
 - **Video Studio** — Generate videos from text prompts (40+ text-to-video models) or animate a start-frame image (60+ image-to-video models). Same intelligent mode switching as Image Studio.
 - **Lip Sync Studio** — Animate portrait images or sync lips on existing videos using audio. 9 dedicated models across two modes: portrait image + audio → talking video, and video + audio → lipsync video.
