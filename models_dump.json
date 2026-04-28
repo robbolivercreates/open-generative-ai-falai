@@ -1781,29 +1781,29 @@
       }
     },
     {
-      "id": "gpt-image-1.5",
-      "name": "Gpt Image 1.5",
+      "id": "openai/gpt-image-2/edit",
+      "name": "GPT Image 2 Edit",
       "inputs": {
         "prompt": {
           "examples": [
-            "A colossal hourglass floating in a silent cosmic void, its upper chamber filled with swirling golden sand that transforms into glowing constellations as it falls. The lower chamber contains a miniature ocean suspended in zero gravity, with waves frozen mid-motion and bioluminescent creatures glowing beneath the surface. Cracks in the glass emit thin beams of white light that bend and refract through drifting stardust. In the background, fragmented planets orbit slowly, partially illuminated by a distant supernova. Ultra-cinematic surreal concept, dramatic contrast between warm gold and deep blue, hyper-detailed textures, volumetric light rays, 8k clarity, dreamlike atmosphere."
+            "Add a dramatic sunset sky behind the subject, with warm golden light casting long shadows across the scene. Keep all other elements exactly as they are."
           ],
-          "description": "Text prompt describing the image.",
+          "description": "Text description of the desired edits to apply to the image.",
           "type": "string",
           "title": "Prompt",
           "name": "prompt"
         },
-        "aspect_ratio": {
-          "enum": [
-            "1:1",
-            "2:3",
-            "3:2"
-          ],
-          "title": "Aspect Ratio",
-          "name": "aspect_ratio",
+        "image_urls": {
+          "description": "One or more reference image URLs to edit.",
+          "type": "array",
+          "title": "Image URLs",
+          "name": "image_urls"
+        },
+        "mask_image_url": {
+          "description": "Optional mask URL. White regions indicate areas to edit; everything outside remains pixel-perfect.",
           "type": "string",
-          "description": "Aspect ratio of the output image.",
-          "default": "1:1"
+          "title": "Mask Image URL",
+          "name": "mask_image_url"
         },
         "quality": {
           "enum": [
@@ -1814,8 +1814,30 @@
           "title": "Quality",
           "name": "quality",
           "type": "string",
-          "description": "The quality of the generated image.",
-          "default": "medium"
+          "description": "Quality of the output image.",
+          "default": "high"
+        },
+        "num_images": {
+          "title": "Number of Images",
+          "name": "num_images",
+          "type": "int",
+          "description": "Number of image variants to generate.",
+          "default": 1,
+          "minValue": 1,
+          "maxValue": 4,
+          "step": 1
+        },
+        "output_format": {
+          "enum": [
+            "jpeg",
+            "png",
+            "webp"
+          ],
+          "title": "Output Format",
+          "name": "output_format",
+          "type": "string",
+          "description": "Format of the output image.",
+          "default": "png"
         }
       }
     },

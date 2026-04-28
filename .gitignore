@@ -36,3 +36,7 @@ out/
 .env
 .env.*
 !.env.example
+
+# Project-specific
+.claude/
+packages/studio/src/models.js.backup

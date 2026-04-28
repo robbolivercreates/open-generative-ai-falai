@@ -800,8 +800,17 @@ export default function ImageStudio({
       if (stored) {
         const data = JSON.parse(stored);
         if (data.imageMode !== undefined) setImageMode(data.imageMode);
-        if (data.selectedModelId) setSelectedModelId(data.selectedModelId);
-        if (data.selectedModelName) setSelectedModelName(data.selectedModelName);
+        if (data.selectedModelId) {
+          const stillExists = t2iModels.find(m => m.id === data.selectedModelId) || i2iModels.find(m => m.id === data.selectedModelId);
+          if (stillExists) {
+            setSelectedModelId(data.selectedModelId);
+          } else {
+            const fallback = (data.imageMode === 'i2i' ? i2iModels[0] : t2iModels[0]);
+            setSelectedModelId(fallback.id);
+            setSelectedModelName(fallback.name);
+          }
+        }
+        if (data.selectedModelName && data.selectedModelId && (t2iModels.find(m => m.id === data.selectedModelId) || i2iModels.find(m => m.id === data.selectedModelId))) setSelectedModelName(data.selectedModelName);
         if (data.selectedAr) setSelectedAr(data.selectedAr);
         if (data.selectedQuality) setSelectedQuality(data.selectedQuality);
         if (data.maxImages) setMaxImages(data.maxImages);

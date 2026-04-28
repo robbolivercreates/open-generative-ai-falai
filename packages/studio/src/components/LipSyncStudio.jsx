@@ -386,7 +386,10 @@ export default function LipSyncStudio({
       if (stored) {
         const data = JSON.parse(stored);
         if (data.inputMode) setInputMode(data.inputMode);
-        if (data.selectedModelId) setSelectedModelId(data.selectedModelId);
+        if (data.selectedModelId) {
+          const stillExists = lipsyncModels.find(m => m.id === data.selectedModelId);
+          setSelectedModelId(stillExists ? data.selectedModelId : (firstModel?.id ?? ""));
+        }
         if (data.selectedResolution) setSelectedResolution(data.selectedResolution);
         if (data.imageUrl) {
           setImageUrl(data.imageUrl);

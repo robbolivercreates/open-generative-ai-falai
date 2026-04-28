@@ -26,20 +26,20 @@ export default function ApiKeyModal({ onSave }) {
             Open Generative AI
           </h1>
           <p className="text-white/40 text-[13px] leading-relaxed px-4">
-            Enter your <a href="https://muapi.ai/access-keys" target="_blank" rel="noreferrer" className="text-[#d9ff00] hover:text-[#e5ff33] transition-colors">Muapi.ai</a> API key to start creating
+            Enter your <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noreferrer" className="text-[#d9ff00] hover:text-[#e5ff33] transition-colors">fal.ai</a> API key to start creating
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="block text-xs font-bold text-white/30 ml-1">
-              API Access Key
+              fal.ai API Key
             </label>
             <input
               type="password"
               value={key}
               onChange={(e) => { setKey(e.target.value); setError(''); }}
-              placeholder="Paste your key here..."
+              placeholder="Paste your fal.ai key here..."
               className="w-full bg-white/5 border border-white/[0.03] rounded-md px-5 py-3 text-sm text-white placeholder:text-white/10 focus:outline-none focus:ring-1 focus:ring-[#d9ff00]/30 focus:bg-white/[0.07] transition-all"
               suppressHydrationWarning
             />
@@ -56,8 +56,8 @@ export default function ApiKeyModal({ onSave }) {
 
           <p className="text-center text-[12px] text-white/20 pt-2">
             Need a key?{' '}
-            <a href="https://muapi.ai/access-keys" target="_blank" rel="noreferrer" className="text-white/40 hover:text-[#d9ff00] transition-colors font-medium">
-              Get one free →
+            <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noreferrer" className="text-white/40 hover:text-[#d9ff00] transition-colors font-medium">
+              Get one at fal.ai →
             </a>
           </p>
         </form>

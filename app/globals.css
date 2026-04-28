@@ -1,20 +1,47 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../packages/studio/src/**/*.{js,jsx}";
+@source "../packages/Open-Poe-AI/packages/agents/src/**/*.{js,jsx}";
+@source "../packages/Vibe-Workflow/packages/workflow-builder/src/**/*.{js,jsx}";
+@source "../components/**/*.{js,jsx}";
+@source "../app/**/*.{js,jsx}";
+
+@theme {
+  --color-primary: #d9ff00;
+  --color-primary-hover: #c4e600;
+  --color-app-bg: #050505;
+  --color-panel-bg: #0a0a0a;
+  --color-card-bg: #141414;
+  --color-secondary: #a1a1aa;
+  --color-muted: #52525b;
+  --font-sans: 'Inter', 'system-ui', '-apple-system', sans-serif;
+  --shadow-glow: 0 0 20px rgba(217, 255, 0, 0.4);
+  --shadow-glow-accent: 0 0 20px rgba(168, 85, 247, 0.4);
+  --shadow-3xl: 0 35px 60px -15px rgba(0, 0, 0, 0.8);
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 
-body {
-  background: #050505;
-  color: white;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #050505;
+    color: white;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
 :root {
-  --color-primary: #d9ff00;
   --bg-app: #030303;
   --bg-panel: #0a0a0a;
   --bg-card: #111111;
@@ -24,10 +51,12 @@ body {
   --glass-border: rgba(255, 255, 255, 0.08);
 }
 
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+@layer components {
+  .glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }

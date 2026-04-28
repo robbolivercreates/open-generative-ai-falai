@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { generateVideo, generateI2V, uploadFile } from "../muapi.js";
+import { generateVideo, generateI2V, generateR2V, uploadFile } from "../muapi.js";
 import {
   t2vModels,
   i2vModels,
   v2vModels,
+  r2vModels,
   getAspectRatiosForVideoModel,
   getDurationsForModel,
   getResolutionsForVideoModel,
   getAspectRatiosForI2VModel,
   getDurationsForI2VModel,
   getResolutionsForI2VModel,
+  getAspectRatiosForR2VModel,
+  getDurationsForR2VModel,
+  getResolutionsForR2VModel,
   getModesForModel,
 } from "../models.js";
 
@@ -243,6 +247,15 @@ export default function VideoStudio({
   // ── mode state ──
   const [imageMode, setImageMode] = useState(false); // i2v
   const [v2vMode, setV2vMode] = useState(false);
+  const [referenceMode, setReferenceMode] = useState(false); // r2v (multi-ref)
+
+  // ── reference uploads (only used in referenceMode) ──
+  const [refImages, setRefImages] = useState([]); // up to 9
+  const [refVideos, setRefVideos] = useState([]); // up to 3
+  const [refAudios, setRefAudios] = useState([]); // up to 3
+  const [refImageProgress, setRefImageProgress] = useState(0);
+  const [refVideoProgress, setRefVideoProgress] = useState(0);
+  const [refAudioProgress, setRefAudioProgress] = useState(0);
 
   // ── model / params ──
   const defaultModel = t2vModels[0];
@@ -314,30 +327,39 @@ export default function VideoStudio({
   const history = historyItems ?? localHistory;
 
   const getCurrentModels = useCallback(() => {
+    if (referenceMode) return r2vModels;
     if (v2vMode) return v2vModels;
     return imageMode ? i2vModels : t2vModels;
-  }, [imageMode, v2vMode]);
+  }, [imageMode, v2vMode, referenceMode]);
 
   const getCurrentAspectRatios = useCallback(
     (id) =>
-      imageMode
+      referenceMode
+        ? getAspectRatiosForR2VModel(id)
+        : imageMode
         ? getAspectRatiosForI2VModel(id)
         : getAspectRatiosForVideoModel(id),
-    [imageMode],
+    [imageMode, referenceMode],
   );
 
   const getCurrentDurations = useCallback(
     (id) =>
-      imageMode ? getDurationsForI2VModel(id) : getDurationsForModel(id),
-    [imageMode],
+      referenceMode
+        ? getDurationsForR2VModel(id)
+        : imageMode
+        ? getDurationsForI2VModel(id)
+        : getDurationsForModel(id),
+    [imageMode, referenceMode],
   );
 
   const getCurrentResolutions = useCallback(
     (id) =>
-      imageMode
+      referenceMode
+        ? getResolutionsForR2VModel(id)
+        : imageMode
         ? getResolutionsForI2VModel(id)
         : getResolutionsForVideoModel(id),
-    [imageMode],
+    [imageMode, referenceMode],
   );
 
   const getCurrentModel = useCallback(
@@ -419,8 +441,20 @@ export default function VideoStudio({
         const data = JSON.parse(stored);
         if (data.imageMode !== undefined) setImageMode(data.imageMode);
         if (data.v2vMode !== undefined) setV2vMode(data.v2vMode);
-        if (data.selectedModel) setSelectedModel(data.selectedModel);
-        if (data.selectedModelName) setSelectedModelName(data.selectedModelName);
+        if (data.referenceMode !== undefined) setReferenceMode(data.referenceMode);
+        if (data.refImages) setRefImages(data.refImages);
+        if (data.refVideos) setRefVideos(data.refVideos);
+        if (data.refAudios) setRefAudios(data.refAudios);
+        if (data.selectedModel) {
+          const stillExists = t2vModels.find(m => m.id === data.selectedModel) || i2vModels.find(m => m.id === data.selectedModel) || v2vModels.find(m => m.id === data.selectedModel) || r2vModels.find(m => m.id === data.selectedModel);
+          if (stillExists) {
+            setSelectedModel(data.selectedModel);
+            if (data.selectedModelName) setSelectedModelName(data.selectedModelName);
+          } else {
+            setSelectedModel(defaultModel.id);
+            setSelectedModelName(defaultModel.name);
+          }
+        }
         if (data.selectedAr) setSelectedAr(data.selectedAr);
         if (data.selectedDuration) setSelectedDuration(data.selectedDuration);
         if (data.selectedResolution) setSelectedResolution(data.selectedResolution);
@@ -466,6 +500,10 @@ export default function VideoStudio({
         const state = {
           imageMode,
           v2vMode,
+          referenceMode,
+          refImages,
+          refVideos,
+          refAudios,
           selectedModel,
           selectedModelName,
           selectedAr,
@@ -488,6 +526,10 @@ export default function VideoStudio({
   }, [
     imageMode,
     v2vMode,
+    referenceMode,
+    refImages,
+    refVideos,
+    refAudios,
     selectedModel,
     selectedModelName,
     selectedAr,
@@ -757,7 +799,20 @@ export default function VideoStudio({
     const isExtendMode = currentModel?.requiresRequestId;
     const trimmedPrompt = prompt.trim();
 
-    if (v2vMode) {
+    if (referenceMode) {
+      if (refImages.length === 0 && refVideos.length === 0) {
+        alert("Reference mode requires at least 1 image or 1 video.");
+        return;
+      }
+      if (refAudios.length > 0 && refImages.length === 0 && refVideos.length === 0) {
+        alert("Audio reference requires at least 1 image or 1 video.");
+        return;
+      }
+      if (!trimmedPrompt) {
+        alert("Please enter a prompt and reference uploads with @Image1, @Video1, @Audio1.");
+        return;
+      }
+    } else if (v2vMode) {
       if (!uploadedVideoUrl) {
         alert("Please upload a video first.");
         return;
@@ -789,7 +844,45 @@ export default function VideoStudio({
     try {
       let res;
 
-      if (v2vMode) {
+      if (referenceMode) {
+        const r2vParams = {
+          model: selectedModel,
+          prompt: trimmedPrompt,
+          aspect_ratio: selectedAr,
+          images_list: refImages,
+          video_files: refVideos,
+          audio_files: refAudios,
+        };
+        const r2vDurations = getDurationsForR2VModel(selectedModel);
+        if (r2vDurations.length > 0) r2vParams.duration = selectedDuration;
+        const r2vResolutions = getResolutionsForR2VModel(selectedModel);
+        if (r2vResolutions.length > 0) r2vParams.resolution = selectedResolution;
+
+        res = await generateR2V(apiKey, r2vParams);
+        if (!res?.url) throw new Error("No video URL returned by API");
+
+        const genId = res.id || Date.now().toString();
+        setLastGenerationId(null);
+        setLastGenerationModel(null);
+        const entry = {
+          id: genId,
+          url: res.url,
+          prompt: trimmedPrompt,
+          model: selectedModel,
+          aspect_ratio: selectedAr,
+          duration: selectedDuration,
+          timestamp: new Date().toISOString(),
+        };
+        addToLocalHistory(entry);
+        showVideoInCanvas(res.url, selectedModel);
+        if (onGenerationComplete)
+          onGenerationComplete({
+            url: res.url,
+            model: selectedModel,
+            prompt: trimmedPrompt,
+            type: "video",
+          });
+      } else if (v2vMode) {
         // V2V: use generateVideo with video_url (the v2v models use the video endpoint)
         res = await generateVideo(apiKey, {
           model: selectedModel,
@@ -1285,6 +1378,168 @@ export default function VideoStudio({
               />
             </div>
           </div>
+
+          {/* Reference mode toggle */}
+          <div className="flex items-center gap-2 px-1 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (referenceMode) {
+                  setReferenceMode(false);
+                  const first = t2vModels[0];
+                  setSelectedModel(first.id);
+                  setSelectedModelName(first.name);
+                  applyControlsForModel(first.id, false, false);
+                } else {
+                  setReferenceMode(true);
+                  setImageMode(false);
+                  setV2vMode(false);
+                  setUploadedImageUrl(null);
+                  setUploadedVideoUrl(null);
+                  const first = r2vModels[0];
+                  setSelectedModel(first.id);
+                  setSelectedModelName(first.name);
+                  setSelectedAr(first.inputs?.aspect_ratio?.default || "16:9");
+                  setSelectedDuration(first.inputs?.duration?.default || 5);
+                  setSelectedResolution(first.inputs?.resolution?.default || "720p");
+                  setShowAr(true);
+                  setShowDuration(true);
+                  setShowResolution(true);
+                  setShowQuality(false);
+                  setShowMode(false);
+                }
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                referenceMode
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-white/[0.03] border-white/[0.05] text-white/40 hover:text-white/80 hover:border-white/20"
+              }`}
+              title="Reference Mode: multi-image + video + audio refs (Seedance 2.0 only)"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M3 12a9 9 0 1 0 9-9" /><path d="M3 12l3-3 3 3" />
+              </svg>
+              Reference Mode
+            </button>
+            {referenceMode && (
+              <span className="text-[9px] text-white/30 font-medium tracking-tight">
+                Use @Image1, @Image2, @Video1, @Audio1 in your prompt to reference uploads
+              </span>
+            )}
+          </div>
+
+          {/* Reference uploads — only in referenceMode */}
+          {referenceMode && (
+            <div className="flex flex-col gap-2 px-1 py-2 border-t border-white/5">
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Multi-image upload */}
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      const remaining = 9 - refImages.length;
+                      for (const file of files.slice(0, remaining)) {
+                        try {
+                          const url = await uploadFile(apiKey, file, (pct) => setRefImageProgress(pct));
+                          setRefImages((prev) => [...prev, url].slice(0, 9));
+                        } catch (err) { alert(err.message); }
+                      }
+                      setRefImageProgress(0);
+                      e.target.value = "";
+                    }}
+                  />
+                  <span className="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-[10px] font-bold text-white/60 hover:text-primary hover:border-primary/30 transition-all uppercase tracking-widest">
+                    + Image ({refImages.length}/9)
+                  </span>
+                </label>
+
+                {/* Multi-video upload */}
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      const remaining = 3 - refVideos.length;
+                      for (const file of files.slice(0, remaining)) {
+                        try {
+                          const url = await uploadFile(apiKey, file, (pct) => setRefVideoProgress(pct));
+                          setRefVideos((prev) => [...prev, url].slice(0, 3));
+                        } catch (err) { alert(err.message); }
+                      }
+                      setRefVideoProgress(0);
+                      e.target.value = "";
+                    }}
+                  />
+                  <span className="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-[10px] font-bold text-white/60 hover:text-primary hover:border-primary/30 transition-all uppercase tracking-widest">
+                    + Video ({refVideos.length}/3)
+                  </span>
+                </label>
+
+                {/* Multi-audio upload */}
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      const remaining = 3 - refAudios.length;
+                      for (const file of files.slice(0, remaining)) {
+                        try {
+                          const url = await uploadFile(apiKey, file, (pct) => setRefAudioProgress(pct));
+                          setRefAudios((prev) => [...prev, url].slice(0, 3));
+                        } catch (err) { alert(err.message); }
+                      }
+                      setRefAudioProgress(0);
+                      e.target.value = "";
+                    }}
+                  />
+                  <span className="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-[10px] font-bold text-white/60 hover:text-primary hover:border-primary/30 transition-all uppercase tracking-widest">
+                    + Audio ({refAudios.length}/3)
+                  </span>
+                </label>
+                {(refImageProgress > 0 || refVideoProgress > 0 || refAudioProgress > 0) && (
+                  <span className="text-[10px] text-primary font-bold">
+                    Uploading… {Math.max(refImageProgress, refVideoProgress, refAudioProgress)}%
+                  </span>
+                )}
+              </div>
+
+              {/* Preview pills */}
+              {(refImages.length > 0 || refVideos.length > 0 || refAudios.length > 0) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {refImages.map((url, i) => (
+                    <div key={`img-${i}`} className="relative group/r flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full border border-primary/20 bg-primary/5">
+                      <img src={url} className="w-6 h-6 rounded-full object-cover border border-white/10" />
+                      <span className="text-[9px] font-bold text-primary uppercase">@Image{i + 1}</span>
+                      <button onClick={() => setRefImages(prev => prev.filter((_, j) => j !== i))} className="text-white/40 hover:text-red-400 text-[10px] ml-0.5">×</button>
+                    </div>
+                  ))}
+                  {refVideos.map((url, i) => (
+                    <div key={`vid-${i}`} className="relative flex items-center gap-1 px-2 py-1 rounded-full border border-orange-400/30 bg-orange-400/5">
+                      <span className="text-[9px] font-bold text-orange-300 uppercase">@Video{i + 1}</span>
+                      <button onClick={() => setRefVideos(prev => prev.filter((_, j) => j !== i))} className="text-white/40 hover:text-red-400 text-[10px]">×</button>
+                    </div>
+                  ))}
+                  {refAudios.map((url, i) => (
+                    <div key={`aud-${i}`} className="relative flex items-center gap-1.5 px-2 py-1 rounded-full border border-blue-400/30 bg-blue-400/5">
+                      <span className="text-[9px] font-bold text-blue-300 uppercase">@Audio{i + 1}</span>
+                      <audio src={url} controls className="h-5 max-w-[100px]" />
+                      <button onClick={() => setRefAudios(prev => prev.filter((_, j) => j !== i))} className="text-white/40 hover:text-red-400 text-[10px]">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Extend banner */}
           {isExtendMode && (

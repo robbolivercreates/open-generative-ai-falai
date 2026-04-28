@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { generateImage, uploadFile } from "../muapi.js";
+import { generateImage, generateI2I, uploadFile } from "../muapi.js";
 
 // ─── Constants (inlined from promptUtils) ───────────────────────────────────
 
@@ -588,14 +588,18 @@ export default function CinemaStudio({
     );
 
     try {
-      const res = await generateImage(apiKey, {
-        model: uploadedImage ? "nano-banana-pro-edit" : "nano-banana-pro",
-        prompt: finalPrompt,
-        aspect_ratio: settings.aspect_ratio,
-        resolution: resolution.toLowerCase(),
-        negative_prompt: "blurry, low quality, distortion, bad composition",
-        images_list: uploadedImage ? [uploadedImage] : [],
-      });
+      const res = uploadedImage
+        ? await generateI2I(apiKey, {
+            model: "fal-ai/nano-banana-pro/edit",
+            prompt: finalPrompt,
+            aspect_ratio: settings.aspect_ratio,
+            images_list: [uploadedImage],
+          })
+        : await generateImage(apiKey, {
+            model: "fal-ai/nano-banana-pro",
+            prompt: finalPrompt,
+            aspect_ratio: settings.aspect_ratio,
+          });
 
       if (res && res.url) {
         const entry = {

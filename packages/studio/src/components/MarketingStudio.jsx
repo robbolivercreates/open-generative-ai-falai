@@ -64,6 +64,14 @@ const RefIcon = () => (
   </svg>
 );
 
+const AudioIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </svg>
+);
+
 // ── Assets ───────────────────────────────────────────────────────────────────
 
 const ASSETS = {
@@ -95,34 +103,38 @@ const OPTIONS = {
 
 // ── Components ───────────────────────────────────────────────────────────────
 
-function UploadSlot({ icon, url, progress, label, onUpload, onClear, multiple = false, images = [] }) {
+function UploadSlot({ icon, url, progress, label, onUpload, onClear, multiple = false, images = [], accept = "image/*", isAudio = false }) {
   const inputRef = useRef(null);
-  
+
   return (
     <div className="relative group/slot flex items-center">
-      <div 
+      <div
         onClick={() => inputRef.current?.click()}
         title={`Upload ${label}`}
         className={`relative w-10 h-10 rounded-full border transition-all flex items-center justify-center cursor-pointer ${
           url ? 'border-primary/40 bg-primary/5' : 'border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20'
         }`}
       >
-        <input 
-          ref={inputRef} 
-          type="file" 
-          accept="image/*"
-          className="hidden" 
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
           multiple={multiple}
-          onChange={(e) => onUpload(e)} 
+          onChange={(e) => onUpload(e)}
         />
-        
+
         {progress > 0 && progress < 100 ? (
           <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center z-10">
             <span className="text-[8px] font-black text-primary">{progress}%</span>
           </div>
-        ) : url ? (
+        ) : url && !isAudio ? (
           <div className="w-full h-full rounded-full overflow-hidden border border-black/20">
             <img src={url} className="w-full h-full object-cover" alt={label} />
+          </div>
+        ) : url && isAudio ? (
+          <div className="text-primary">
+            {icon}
           </div>
         ) : (
           <div className="text-white/40 group-hover:text-primary transition-colors">
@@ -238,6 +250,7 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
   const [productImage, setProductImage] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
   const [additionalImages, setAdditionalImages] = useState([]);
+  const [audioFiles, setAudioFiles] = useState([]); // up to 3 audio URLs
   
   const [params, setParams] = useState({
     ratio: "9:16",
@@ -250,7 +263,7 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
   const [history, setHistory] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [dropdown, setDropdown] = useState(null); // 'format' | 'avatar' | 'ratio' | 'res' | 'duration'
-  const [uploadProgress, setUploadProgress] = useState({ product: 0, avatar: 0, additional: 0 });
+  const [uploadProgress, setUploadProgress] = useState({ product: 0, avatar: 0, additional: 0, audio: 0 });
   const [fullscreenUrl, setFullscreenUrl] = useState(null);
 
   const textareaRef = useRef(null);
@@ -267,6 +280,7 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
         if (data.productImage) setProductImage(data.productImage);
         if (data.avatarImage) setAvatarImage(data.avatarImage);
         if (data.additionalImages) setAdditionalImages(data.additionalImages);
+        if (data.audioFiles) setAudioFiles(data.audioFiles);
         if (data.history) setHistory(data.history);
       }
     } catch (err) { console.warn("Load failed", err); }
@@ -274,11 +288,11 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const state = { prompt, params, productImage, avatarImage, additionalImages, history };
+      const state = { prompt, params, productImage, avatarImage, additionalImages, audioFiles, history };
       localStorage.setItem(PERSIST_KEY, JSON.stringify(state));
     }, 500);
     return () => clearTimeout(timer);
-  }, [prompt, params, productImage, avatarImage, additionalImages, history]);
+  }, [prompt, params, productImage, avatarImage, additionalImages, audioFiles, history]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -312,6 +326,15 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
           setAdditionalImages(prev => [...prev, url].slice(0, 6));
         } catch (err) { alert(err.message); }
       }
+    } else if (target === 'audio') {
+      const remaining = 3 - audioFiles.length;
+      const toUpload = files.slice(0, remaining);
+      for (const file of toUpload) {
+        try {
+          const url = await uploadFile(apiKey, file, (pct) => setUploadProgress(p => ({ ...p, audio: pct })));
+          setAudioFiles(prev => [...prev, url].slice(0, 3));
+        } catch (err) { alert(err.message); }
+      }
     } else {
       const file = files[0];
       try {
@@ -335,7 +358,8 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
         duration: params.duration,
         resolution: params.res,
         images_list: [productImage, avatarImage, ...additionalImages].filter(Boolean),
-        video_files: params.videoUrl ? [params.videoUrl] : []
+        video_files: params.videoUrl ? [params.videoUrl] : [],
+        audio_files: audioFiles
       });
 
       if (result?.url) {
@@ -440,9 +464,25 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
               {additionalImages.map((img, idx) => (
                 <div key={idx} className="relative group/img flex-shrink-0">
                   <img src={img} className="w-9 h-9 rounded-full object-cover border border-white/10" />
-                  <button 
+                  <button
                     onClick={() => setAdditionalImages(prev => prev.filter((_, i) => i !== idx))}
                     className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/10"
+                  >
+                    <CloseSvg />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {audioFiles.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {audioFiles.map((url, idx) => (
+                <div key={idx} className="relative group/aud flex items-center gap-2 px-2 py-1.5 rounded-full border border-primary/20 bg-primary/5">
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest">@Audio{idx + 1}</span>
+                  <audio src={url} controls className="h-6 max-w-[140px]" />
+                  <button
+                    onClick={() => setAudioFiles(prev => prev.filter((_, i) => i !== idx))}
+                    className="w-3.5 h-3.5 bg-black/80 text-white rounded-full flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity border border-white/10"
                   >
                     <CloseSvg />
                   </button>
@@ -457,7 +497,7 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onInput={handleTextareaInput}
-              placeholder="Describe your ad script... Use @image1 for product, @image2 for avatar."
+              placeholder="Describe your ad. Reference uploads with @Image1, @Image2, @Video1, @Audio1 (e.g. '@Avatar speaks like @Audio1 holding @Product')."
               rows={1}
               className="w-full bg-transparent border-none text-white text-sm placeholder:text-white/20 focus:outline-none resize-none pt-1 leading-relaxed min-h-[44px] max-h-[300px] custom-scrollbar font-medium"
             />
@@ -485,21 +525,32 @@ export default function MarketingStudio({ apiKey, droppedFiles, onFilesHandled }
                   onUpload={(e) => handleUpload(e, 'avatar')} 
                   onClear={() => setAvatarImage(null)} 
                 />
-                <UploadSlot 
-                  label="References" 
-                  icon={<RefIcon />} 
-                  url={additionalImages[0]} 
-                  progress={uploadProgress.additional} 
-                  multiple 
+                <UploadSlot
+                  label="References"
+                  icon={<RefIcon />}
+                  url={additionalImages[0]}
+                  progress={uploadProgress.additional}
+                  multiple
                   images={additionalImages}
-                  onUpload={(e) => handleUpload(e, 'additional')} 
+                  onUpload={(e) => handleUpload(e, 'additional')}
                   onClear={(idx) => {
                     if (idx !== undefined) {
                       setAdditionalImages(prev => prev.filter((_, i) => i !== idx));
                     } else {
                       setAdditionalImages([]);
                     }
-                  }} 
+                  }}
+                />
+                <UploadSlot
+                  label={`Audio (${audioFiles.length}/3)`}
+                  icon={<AudioIcon />}
+                  url={audioFiles[0]}
+                  progress={uploadProgress.audio}
+                  multiple
+                  accept="audio/*"
+                  isAudio
+                  onUpload={(e) => handleUpload(e, 'audio')}
+                  onClear={() => setAudioFiles([])}
                 />
               </div>
 
